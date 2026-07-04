@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Guessing Game</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    background:linear-gradient(135deg,#4facfe,#00f2fe);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.container{
+    background:white;
+    width:400px;
+    padding:30px;
+    border-radius:15px;
+    text-align:center;
+    box-shadow:0 10px 20px rgba(0,0,0,.3);
+}
+
+h1{
+    color:#333;
+    margin-bottom:15px;
+}
+
+p{
+    margin:10px;
+}
+
+input{
+    width:80%;
+    padding:10px;
+    font-size:18px;
+    text-align:center;
+    margin:15px 0;
+    border:2px solid #4facfe;
+    border-radius:8px;
+}
+
+button{
+    padding:10px 20px;
+    margin:5px;
+    font-size:16px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+#guessBtn{
+    background:#28a745;
+    color:white;
+}
+
+#guessBtn:hover{
+    background:#218838;
+}
+
+#restartBtn{
+    background:#ff5722;
+    color:white;
+}
+
+#restartBtn:hover{
+    background:#e64a19;
+}
+
+#message{
+    font-size:20px;
+    font-weight:bold;
+    margin-top:15px;
+}
+
+.scoreBox{
+    display:flex;
+    justify-content:space-around;
+    margin-top:20px;
+    font-size:18px;
+}
+
+.win{
+    color:green;
+}
+
+.lose{
+    color:red;
+}
+
+.hint{
+    color:blue;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎯 Number Guessing Game</h1>
+
+<p>Guess a number between <b>1 and 100</b></p>
+
+<input type="number" id="guess" placeholder="Enter your guess">
+
+<br>
+
+<button id="guessBtn">Guess</button>
+<button id="restartBtn">Restart</button>
+
+<div id="message"></div>
+
+<div class="scoreBox">
+<div>Attempts: <span id="attempts">0</span></div>
+<div>Score: <span id="score">100</span></div>
+</div>
+
+</div>
+
+<script>
+
+let secretNumber;
+let attempts;
+let score;
+
+function startGame(){
+    secretNumber=Math.floor(Math.random()*100)+1;
+    attempts=0;
+    score=100;
+
+    document.getElementById("attempts").innerHTML=attempts;
+    document.getElementById("score").innerHTML=score;
+    document.getElementById("message").innerHTML="";
+    document.getElementById("guess").value="";
+}
+
+startGame();
+
+document.getElementById("guessBtn").onclick=function(){
+
+let guess=Number(document.getElementById("guess").value);
+
+if(guess<1 || guess>100 || isNaN(guess)){
+    document.getElementById("message").innerHTML="⚠ Enter a number from 1 to 100";
+    document.getElementById("message").className="lose";
+    return;
+}
+
+attempts++;
+score-=5;
+
+document.getElementById("attempts").innerHTML=attempts;
+document.getElementById("score").innerHTML=Math.max(score,0);
+
+if(guess===secretNumber){
+
+document.getElementById("message").innerHTML=
+"🎉 Congratulations! You guessed the number in "+attempts+" attempts.<br>🏆 Final Score: "+Math.max(score,0);
+
+document.getElementById("message").className="win";
+
+}
+else if(guess<secretNumber){
+
+document.getElementById("message").innerHTML="📈 Too Low! Try a higher number.";
+document.getElementById("message").className="hint";
+
+}
+else{
+
+document.getElementById("message").innerHTML="📉 Too High! Try a lower number.";
+document.getElementById("message").className="hint";
+
+}
+
+if(attempts>=20 && guess!==secretNumber){
+
+document.getElementById("message").innerHTML=
+"😢 Game Over!<br>The correct number was <b>"+secretNumber+"</b>";
+
+document.getElementById("message").className="lose";
+
+}
+
+}
+
+document.getElementById("restartBtn").onclick=function(){
+startGame();
+}
+
+</script>
+
+</body>
+</html>

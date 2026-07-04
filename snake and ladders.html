@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iteration Framework — Snake & Ladder Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;--bg2:#f5f5f0;--txt:#1a1a18;--txt2:#6b6b65;
+  --brd:rgba(0,0,0,0.12);--brd2:rgba(0,0,0,0.22);
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1e1e1c;--bg2:#2a2a28;--txt:#e8e6dc;--txt2:#9c9a90;--brd:rgba(255,255,255,0.1);--brd2:rgba(255,255,255,0.2)}
+}
+body{background:var(--bg2);font-family:'Segoe UI',system-ui,sans-serif;color:var(--txt);min-height:100vh;padding:20px}
+.dash{display:grid;grid-template-columns:1fr 310px;gap:14px;max-width:1040px;margin:0 auto}
+.panel{background:var(--bg);border:0.5px solid var(--brd);border-radius:12px;padding:14px}
+.panel h3{font-size:11px;font-weight:700;margin-bottom:10px;color:var(--txt2);text-transform:uppercase;letter-spacing:.08em}
+.header{max-width:1040px;margin:0 auto 14px;padding:16px 20px;background:var(--bg);border-radius:12px;border:0.5px solid var(--brd)}
+.header h1{font-size:20px;font-weight:600;margin-bottom:4px}
+.header p{font-size:13px;color:var(--txt2)}
+
+/* 3D Board */
+#board-wrap{perspective:900px;display:flex;justify-content:center;padding:8px 0 20px}
+#board{width:390px;height:390px;transform:rotateX(18deg) rotateZ(-1deg);transform-style:preserve-3d;position:relative}
+.board-grid{display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(10,1fr);width:100%;height:100%;border-radius:8px;overflow:hidden;border:2px solid #a87c3e;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.cell{display:flex;align-items:center;justify-content:center;position:relative;cursor:default;user-select:none}
+.cell .num{z-index:2;position:relative;font-size:9px;color:rgba(0,0,0,.4);font-weight:700}
+.cell .ico{position:absolute;font-size:13px;top:50%;left:50%;transform:translate(-50%,-54%);opacity:.45;z-index:1}
+.cell.even{background:#f5e9cb}.cell.odd{background:#fffdf5}
+.cell.start-zone{background:#d4edda!important}.cell.end-zone{background:#ffd6e7!important}
+.cell.highlight{animation:cpop .35s ease}
+@keyframes cpop{0%{transform:scale(1)}50%{transform:scale(1.22)}100%{transform:scale(1)}}
+
+#board-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+
+.token{position:absolute;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;z-index:20;transition:all .55s cubic-bezier(.34,1.56,.64,1);box-shadow:0 3px 8px rgba(0,0,0,.35);pointer-events:none}
+.token-a{background:linear-gradient(145deg,#5b8af5,#3a5fd4);color:#fff;border:2px solid #2a4fc4}
+.token-b{background:linear-gradient(145deg,#f57c5b,#d44a3a);color:#fff;border:2px solid #c43a2a}
+
+/* Right panel */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.mc{background:var(--bg2);border-radius:8px;padding:10px;text-align:center}
+.mc .val{font-size:22px;font-weight:600;line-height:1.1}
+.mc .lbl{font-size:11px;color:var(--txt2);margin-top:2px}
+.val-a{color:#3a5fd4}.val-b{color:#d44a3a}.val-it{color:#2a8a4a}.val-t{color:#a07820}
+.dice-row{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.die{width:46px;height:46px;background:var(--bg);border:1.5px solid var(--brd2);border-radius:8px;display:grid;place-items:center;font-size:24px;box-shadow:2px 2px 0 var(--brd)}
+.die.rolling{animation:roll .4s ease}
+@keyframes roll{0%{transform:rotate(0)}25%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}75%{transform:rotate(-8deg)}100%{transform:rotate(0)}}
+.btn{padding:10px 16px;border-radius:8px;border:0.5px solid var(--brd2);background:var(--bg);color:var(--txt);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;flex:1}
+.btn:hover{background:var(--bg2)}.btn:active{transform:scale(.97)}
+.btn-p{background:#3a5fd4;color:#fff;border-color:#2a4fc4}.btn-p:hover{background:#2a4fc4}
+.btn-row{display:flex;gap:8px}
+.log-area{height:140px;overflow-y:auto;background:var(--bg2);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.9;font-family:monospace}
+.log-area::-webkit-scrollbar{width:4px}.log-area::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px}
+.ls{color:#d44a3a}.ll{color:#2a8a4a}.lw{color:#7b1fa2;font-weight:700}
+.iter-track{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0;min-height:28px}
+.idot{width:22px;height:22px;border-radius:50%;background:var(--bg2);border:1.5px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;transition:all .3s}
+.idot.da{background:#3a5fd4;color:#fff;border-color:#2a4fc4}.idot.db{background:#d44a3a;color:#fff;border-color:#c43a2a}
+.idot.sn{background:#d44a3a!important}.idot.ld{background:#2a8a4a!important;color:#fff}
+.idot.cur{box-shadow:0 0 0 3px rgba(90,138,90,.5)}
+.pbadge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;margin-bottom:10px}
+.pp{background:#e8f0fe;color:#1a56d4}.pe{background:#e6f4ea;color:#1a7a3a}
+.pv{background:#fff3e0;color:#a05010}.pa{background:#f3e5f5;color:#7b1fa2}
+.pi{background:var(--bg2);color:var(--txt2)}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
+.li{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt2)}
+.ls2{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+#winner-banner{display:none;padding:10px;background:linear-gradient(135deg,#f3e5f5,#e8eaf6);border:0.5px solid #b39ddb;border-radius:8px;text-align:center;margin-bottom:10px;font-size:14px;font-weight:600;color:#5e35b1}
+.tip{position:fixed;background:var(--bg);border:0.5px solid var(--brd2);padding:5px 9px;font-size:11px;border-radius:6px;pointer-events:none;z-index:1000;display:none;box-shadow:0 4px 14px rgba(0,0,0,.14)}
+.bfoot{text-align:center;font-size:11px;color:var(--txt2);margin-top:8px;opacity:.7}
+.phase-info{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.ps{border-radius:7px;padding:7px 9px;font-size:11px}
+.ps strong{display:block;font-weight:600;margin-bottom:2px}
+.ps-pl{background:#e8f0fe;color:#1a56d4}.ps-ex{background:#e6f4ea;color:#1a7a3a}
+.ps-ev{background:#fff3e0;color:#a05010}.ps-ad{background:#f3e5f5;color:#7b1fa2}
+@media(max-width:720px){.dash{grid-template-columns:1fr}#board{width:340px;height:340px}body{padding:10px}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎲 Iteration Framework — Snake &amp; Ladder Dashboard</h1>
+  <p>Each dice roll = one <strong>iteration cycle</strong>. Phases: <strong>Plan → Execute → Evaluate → Adapt</strong> &nbsp;|&nbsp; 🪜 Ladders = breakthroughs &nbsp;|&nbsp; 🐍 Snakes = setbacks</p>
+</div>
+
+<div class="dash">
+  <div>
+    <div class="panel">
+      <div style="text-align:center;font-size:11px;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">10 × 10 Iteration Game Board</div>
+      <div id="board-wrap">
+        <div id="board">
+          <div class="board-grid" id="grid"></div>
+          <svg id="board-svg" viewBox="0 0 390 390" preserveAspectRatio="none"></svg>
+          <div id="tokenA" class="token token-a" style="display:none">P1</div>
+          <div id="tokenB" class="token token-b" style="display:none">P2</div>
+        </div>
+      </div>
+      <div class="bfoot">🪜 Ladders = iteration acceleration &nbsp;|&nbsp; 🐍 Snakes = setback — revisit earlier state</div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="panel">
+      <div id="winner-banner">🎉 <span id="winner-text"></span></div>
+      <div id="pbadge" class="pbadge pi">Phase: Initialization</div>
+      <div class="metrics">
+        <div class="mc"><div class="val val-a" id="pos-a">1</div><div class="lbl">🔵 Player 1</div></div>
+        <div class="mc"><div class="val val-b" id="pos-b">1</div><div class="lbl">🔴 Player 2</div></div>
+        <div class="mc"><div class="val val-it" id="iter-count">0</div><div class="lbl">Iterations</div></div>
+        <div class="mc"><div class="val val-t" id="turn-label">P1</div><div class="lbl">Current turn</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Roll the Dice</h3>
+      <div class="dice-row">
+        <div class="die" id="die1">⚀</div>
+        <div class="die" id="die2">⚁</div>
+        <div style="flex:1;font-size:12px;color:var(--txt2)" id="dice-sum">Roll to begin</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-p" id="btn-roll" onclick="doRoll()">🎲 Roll &amp; Iterate</button>
+        <button class="btn" onclick="resetGame()">↺ Reset</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Iteration History</h3>
+      <div class="iter-track" id="iter-track"></div>
+      <div class="legend">
+        <div class="li"><div class="ls2" style="background:#2a8a4a"></div>Ladder = accelerate</div>
+        <div class="li"><div class="ls2" style="background:#d44a3a"></div>Snake = setback</div>
+        <div class="li"><div class="ls2" style="background:#3a5fd4"></div>Player 1 turn</div>
+        <div class="li"><div class="ls2" style="background:#d44a3a"></div>Player 2 turn</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Iteration Cycle Phases</h3>
+      <div class="phase-info">
+        <div class="ps ps-pl"><strong>🗺️ Plan</strong>Define goals &amp; strategy</div>
+        <div class="ps ps-ex"><strong>⚙️ Execute</strong>Implement the plan</div>
+        <div class="ps ps-ev"><strong>🔍 Evaluate</strong>Measure outcomes</div>
+        <div class="ps ps-ad"><strong>🔄 Adapt</strong>Adjust &amp; improve</div>
+      </div>
+    </div>
+    <div class="panel" style="flex:1">
+      <h3>Iteration Log</h3>
+      <div class="log-area" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+/* ══════════════════════════════════════
+   GAME DATA
+══════════════════════════════════════ */
+const SNAKES  = {17:7,54:34,62:19,64:60,87:24,93:73,95:75,99:78};
+const LADDERS = {4:14,9:31,20:38,28:84,40:59,51:67,63:81,71:91};
+const FACES   = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+const NS = 'http://www.w3.org/2000/svg';
+let state = {posA:1,posB:1,turn:'A',iter:0,gameOver:false};
+
+/* ══════════════════════════════════════
+   COORDINATE HELPER
+══════════════════════════════════════ */
+function cellXY(n){
+  const idx=n-1, row=Math.floor(idx/10), col=idx%10;
+  const vRow=9-row, vCol=(row%2===0)?col:(9-col);
+  const cw=39,ch=39;
+  return{x:vCol*cw+cw/2, y:vRow*ch+ch/2};
+}
+
+/* ══════════════════════════════════════
+   BUILD GRID
+══════════════════════════════════════ */
+function buildGrid(){
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  for(let vRow=0;vRow<10;vRow++){
+    const bRow=9-vRow;
+    for(let vCol=0;vCol<10;vCol++){
+      const bCol=(bRow%2===0)?vCol:(9-vCol);
+      const num=bRow*10+bCol+1;
+      const cell=document.createElement('div');
+      cell.className='cell '+((vRow+vCol)%2===0?'even':'odd');
+      if(num===1)cell.classList.add('start-zone');
+      if(num===100)cell.classList.add('end-zone');
+      cell.id='cell-'+num;
+      let icon='';
+      if(SNAKES[num])icon='🐍';
+      else if(LADDERS[num])icon='🪜';
+      else if(num===1)icon='🚀';
+      else if(num===100)icon='🏆';
+      cell.innerHTML=`<span class="num">${num}</span>${icon?`<span class="ico">${icon}</span>`:''}`;
+      cell.addEventListener('mouseenter',e=>showTip(num,e));
+      cell.addEventListener('mouseleave',()=>{document.getElementById('tip').style.display='none'});
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function showTip(n,e){
+  const tip=document.getElementById('tip');
+  let msg=`Cell ${n}`;
+  if(SNAKES[n])msg+=` → 🐍 Snake! Falls to ${SNAKES[n]}`;
+  else if(LADDERS[n])msg+=` → 🪜 Ladder! Climbs to ${LADDERS[n]}`;
+  else if(n===1)msg+=' — Start';
+  else if(n===100)msg+=' — 🏆 Goal!';
+  tip.textContent=msg;
+  tip.style.display='block';
+  tip.style.left=(e.clientX+14)+'px';
+  tip.style.top=(e.clientY-32)+'px';
+}
+
+/* ══════════════════════════════════════
+   SVG HELPERS
+══════════════════════════════════════ */
+function el(tag,attrs){
+  const e=document.createElementNS(NS,tag);
+  for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);
+  return e;
+}
+
+/* ══════════════════════════════════════
+   DRAW PROPER SNAKE (body segments with scales)
+══════════════════════════════════════ */
+function drawSnake(svg, fromCell, toCell, colorBody, colorHead){
+  const f=cellXY(fromCell), t=cellXY(toCell);
+
+  // Build a smooth curved path using a catmull-rom approach
+  // We'll generate intermediate control points for a winding snake body
+  const dx=t.x-f.x, dy=t.y-f.y;
+  const dist=Math.hypot(dx,dy);
+  const segs=Math.max(4, Math.floor(dist/35));
+
+  // Generate waypoints with perpendicular offsets to make it wind
+  const waypoints=[];
+  for(let i=0;i<=segs;i++){
+    const tt=i/segs;
+    const bx=f.x+dx*tt, by=f.y+dy*tt;
+    // Perpendicular direction
+    const px=-dy/dist, py=dx/dist;
+    // Alternating sine wave offset
+    const amp=18*Math.sin(i*0.9+fromCell*0.3); // vary per snake
+    waypoints.push({x:bx+px*amp, y:by+py*amp});
+  }
+
+  // Build smooth cubic bezier path through waypoints
+  function buildPath(pts){
+    if(pts.length<2)return '';
+    let d=`M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+    for(let i=1;i<pts.length;i++){
+      const prev=pts[i-1], curr=pts[i];
+      const next=pts[Math.min(i+1,pts.length-1)];
+      const prev2=pts[Math.max(i-2,0)];
+      const cp1x=(prev.x+(curr.x-prev2.x)*0.25).toFixed(1);
+      const cp1y=(prev.y+(curr.y-prev2.y)*0.25).toFixed(1);
+      const cp2x=(curr.x-(next.x-prev.x)*0.25).toFixed(1);
+      const cp2y=(curr.y-(next.y-prev.y)*0.25).toFixed(1);
+      d+=` C${cp1x},${cp1y} ${cp2x},${cp2y} ${curr.x.toFixed(1)},${curr.y.toFixed(1)}`;
+    }
+    return d;
+  }
+
+  const pathD=buildPath(waypoints);
+
+  // ── Shadow / outline (slightly thicker, dark) ──
+  svg.appendChild(el('path',{
+    d:pathD, fill:'none',
+    stroke:'rgba(0,0,0,0.3)', 'stroke-width':'13',
+    'stroke-linecap':'round','stroke-linejoin':'round'
+  }));
+
+  // ── Main body ──
+  svg.appendChild(el('path',{
+    d:pathD, fill:'none',
+    stroke:colorBody, 'stroke-width':'10',
+    'stroke-linecap':'round','stroke-linejoin':'round','opacity':'0.92'
+  }));
+
+  // ── Belly stripe (lighter center) ──
+  svg.appendChild(el('path',{
+    d:pathD, fill:'none',
+    stroke:'rgba(255,255,255,0.22)', 'stroke-width':'4',
+    'stroke-linecap':'round','stroke-linejoin':'round'
+  }));
+
+  // ── Scale pattern (dashes across body) ──
+  svg.appendChild(el('path',{
+    d:pathD, fill:'none',
+    stroke:'rgba(0,0,0,0.18)', 'stroke-width':'10',
+    'stroke-linecap':'round','stroke-linejoin':'round',
+    'stroke-dasharray':'2 14'
+  }));
+
+  // ── HEAD at fromCell (tail of snake = start, head = end visually but snake HEAD is at high number) ──
+  const headPt=waypoints[0]; // snake head at the HIGH cell (where you land)
+  const tailPt=waypoints[waypoints.length-1];
+
+  // Head circle
+  const headG=document.createElementNS(NS,'g');
+
+  // Head body
+  headG.appendChild(el('circle',{cx:headPt.x,cy:headPt.y,r:'8',fill:colorHead,'stroke':'rgba(0,0,0,0.35)','stroke-width':'1.5'}));
+
+  // Eyes
+  // direction of head from second point
+  const hp2=waypoints[1]||{x:headPt.x+1,y:headPt.y};
+  const ang=Math.atan2(headPt.y-hp2.y, headPt.x-hp2.x);
+  const eyeDist=4;
+  const eyeOffX=Math.cos(ang+Math.PI/2)*eyeDist;
+  const eyeOffY=Math.sin(ang+Math.PI/2)*eyeDist;
+  const eyeFwdX=Math.cos(ang)*3;
+  const eyeFwdY=Math.sin(ang)*3;
+
+  // White eye sclera
+  headG.appendChild(el('circle',{cx:(headPt.x+eyeOffX+eyeFwdX).toFixed(1),cy:(headPt.y+eyeOffY+eyeFwdY).toFixed(1),r:'2.5',fill:'white'}));
+  headG.appendChild(el('circle',{cx:(headPt.x-eyeOffX+eyeFwdX).toFixed(1),cy:(headPt.y-eyeOffY+eyeFwdY).toFixed(1),r:'2.5',fill:'white'}));
+  // Pupils
+  headG.appendChild(el('circle',{cx:(headPt.x+eyeOffX+eyeFwdX).toFixed(1),cy:(headPt.y+eyeOffY+eyeFwdY).toFixed(1),r:'1.2',fill:'#111'}));
+  headG.appendChild(el('circle',{cx:(headPt.x-eyeOffX+eyeFwdX).toFixed(1),cy:(headPt.y-eyeOffY+eyeFwdY).toFixed(1),r:'1.2',fill:'#111'}));
+
+  // Forked tongue
+  const tx=headPt.x+Math.cos(ang)*11;
+  const ty=headPt.y+Math.sin(ang)*11;
+  const tx1=tx+Math.cos(ang+0.45)*5, ty1=ty+Math.sin(ang+0.45)*5;
+  const tx2=tx+Math.cos(ang-0.45)*5, ty2=ty+Math.sin(ang-0.45)*5;
+  headG.appendChild(el('line',{x1:headPt.x+Math.cos(ang)*8,y1:headPt.y+Math.sin(ang)*8,x2:tx,y2:ty,stroke:'#cc2222','stroke-width':'1.5','stroke-linecap':'round'}));
+  headG.appendChild(el('line',{x1:tx,y1:ty,x2:tx1.toFixed(1),y2:ty1.toFixed(1),stroke:'#cc2222','stroke-width':'1','stroke-linecap':'round'}));
+  headG.appendChild(el('line',{x1:tx,y1:ty,x2:tx2.toFixed(1),y2:ty2.toFixed(1),stroke:'#cc2222','stroke-width':'1','stroke-linecap':'round'}));
+
+  svg.appendChild(headG);
+
+  // ── Tail tip (at the lower cell, tapered) ──
+  const tail2=waypoints[waypoints.length-2]||{x:tailPt.x-1,y:tailPt.y};
+  const tailAng=Math.atan2(tailPt.y-tail2.y, tailPt.x-tail2.x);
+  const tipX=(tailPt.x+Math.cos(tailAng)*6).toFixed(1);
+  const tipY=(tailPt.y+Math.sin(tailAng)*6).toFixed(1);
+  svg.appendChild(el('line',{
+    x1:tailPt.x.toFixed(1),y1:tailPt.y.toFixed(1),
+    x2:tipX,y2:tipY,
+    stroke:colorBody,'stroke-width':'3','stroke-linecap':'round','opacity':'0.85'
+  }));
+}
+
+/* ══════════════════════════════════════
+   DRAW LADDERS
+══════════════════════════════════════ */
+function drawLadder(svg, fromCell, toCell){
+  const f=cellXY(fromCell), t=cellXY(toCell);
+  const dx=t.x-f.x, dy=t.y-f.y;
+  const len=Math.hypot(dx,dy);
+  const px=-dy/len*4.5, py=dx/len*4.5;
+
+  // Shadow
+  [1,-1].forEach(s=>{
+    svg.appendChild(el('line',{x1:f.x+px*s+1,y1:f.y+py*s+1,x2:t.x+px*s+1,y2:t.y+py*s+1,stroke:'rgba(0,0,0,0.2)','stroke-width':'3.5','stroke-linecap':'round'}));
+  });
+  // Rails
+  [1,-1].forEach(s=>{
+    svg.appendChild(el('line',{x1:f.x+px*s,y1:f.y+py*s,x2:t.x+px*s,y2:t.y+py*s,stroke:'#4a7c3f','stroke-width':'3','stroke-linecap':'round','opacity':'0.9'}));
+  });
+  // Rail highlight
+  [1,-1].forEach(s=>{
+    svg.appendChild(el('line',{x1:f.x+px*s,y1:f.y+py*s,x2:t.x+px*s,y2:t.y+py*s,stroke:'rgba(255,255,255,0.25)','stroke-width':'1.2','stroke-linecap':'round'}));
+  });
+
+  // Rungs
+  const steps=Math.max(3,Math.floor(len/14));
+  for(let i=1;i<=steps;i++){
+    const tt=i/(steps+1);
+    const rx=f.x+dx*tt, ry=f.y+dy*tt;
+    // Rung shadow
+    svg.appendChild(el('line',{x1:rx+px*1.3+.8,y1:ry+py*1.3+.8,x2:rx-px*1.3+.8,y2:ry-py*1.3+.8,stroke:'rgba(0,0,0,0.15)','stroke-width':'2.5','stroke-linecap':'round'}));
+    // Rung
+    svg.appendChild(el('line',{x1:rx+px*1.3,y1:ry+py*1.3,x2:rx-px*1.3,y2:ry-py*1.3,stroke:'#6aaa5a','stroke-width':'2','stroke-linecap':'round','opacity':'0.9'}));
+  }
+
+  // Top cap circle
+  svg.appendChild(el('circle',{cx:t.x,cy:t.y,r:'5.5',fill:'#3a7a30','stroke':'rgba(0,0,0,0.25)','stroke-width':'1'}));
+  svg.appendChild(el('circle',{cx:t.x,cy:t.y,r:'3',fill:'#a0d890'}));
+  // Bottom cap circle
+  svg.appendChild(el('circle',{cx:f.x,cy:f.y,r:'4',fill:'#3a7a30','stroke':'rgba(0,0,0,0.2)','stroke-width':'1'}));
+}
+
+/* ══════════════════════════════════════
+   SNAKE COLOR PALETTE (8 distinct snakes)
+══════════════════════════════════════ */
+const SNAKE_COLORS = [
+  {body:'#c0392b',head:'#922b21'},  // deep red
+  {body:'#8e44ad',head:'#6c3483'},  // purple
+  {body:'#d35400',head:'#a04000'},  // orange
+  {body:'#1a5276',head:'#154360'},  // navy
+  {body:'#117a65',head:'#0b5345'},  // teal
+  {body:'#784212',head:'#6e2c00'},  // brown
+  {body:'#1c2833',head:'#17202a'},  // dark
+  {body:'#7d6608',head:'#9a7d0a'},  // olive
+];
+
+function drawPaths(){
+  const svg=document.getElementById('board-svg');
+  svg.innerHTML='';
+
+  // Draw ladders first (below snakes)
+  Object.entries(LADDERS).forEach(([from,to])=>drawLadder(svg,+from,+to));
+
+  // Draw snakes on top
+  Object.entries(SNAKES).forEach(([from,to],i)=>{
+    const c=SNAKE_COLORS[i%SNAKE_COLORS.length];
+    drawSnake(svg,+from,+to,c.body,c.head);
+  });
+}
+
+/* ══════════════════════════════════════
+   TOKENS
+══════════════════════════════════════ */
+function placeToken(id,num){
+  const tok=document.getElementById(id);
+  const {x,y}=cellXY(num);
+  const bw=document.getElementById('board').clientWidth||390;
+  const bh=document.getElementById('board').clientHeight||390;
+  const px=(x/390)*bw, py=(y/390)*bh;
+  const offX=id==='tokenA'?-13:4;
+  tok.style.left=(px+offX-12)+'px';
+  tok.style.top=(py-12)+'px';
+  tok.style.display='flex';
+}
+
+function flashCell(n){
+  const c=document.getElementById('cell-'+n);
+  if(c){c.classList.add('highlight');setTimeout(()=>c.classList.remove('highlight'),400);}
+}
+
+/* ══════════════════════════════════════
+   PHASES
+══════════════════════════════════════ */
+const PHASES=['plan','execute','evaluate','adapt'];
+const PL={plan:'🗺️ Plan',execute:'⚙️ Execute',evaluate:'🔍 Evaluate',adapt:'🔄 Adapt'};
+const PC={plan:'pp',execute:'pe',evaluate:'pv',adapt:'pa'};
+
+function updatePhase(iter){
+  const p=PHASES[iter%4];
+  const b=document.getElementById('pbadge');
+  b.className='pbadge '+PC[p]; b.textContent=PL[p]; return p;
+}
+
+/* ══════════════════════════════════════
+   ROLL
+══════════════════════════════════════ */
+function doRoll(){
+  if(state.gameOver)return;
+  document.getElementById('btn-roll').disabled=true;
+  const d1=Math.ceil(Math.random()*6), d2=Math.ceil(Math.random()*6), total=d1+d2;
+  state.iter++;
+  ['die1','die2'].forEach(id=>{const e=document.getElementById(id);e.classList.add('rolling');setTimeout(()=>e.classList.remove('rolling'),400);});
+  setTimeout(()=>{
+    document.getElementById('die1').textContent=FACES[d1-1];
+    document.getElementById('die2').textContent=FACES[d2-1];
+    document.getElementById('dice-sum').textContent=`Total: ${total}  (${d1}+${d2})`;
+  },200);
+  setTimeout(()=>{
+    const phase=updatePhase(state.iter);
+    const player=state.turn, pNum=player==='A'?1:2;
+    let pos=player==='A'?state.posA:state.posB;
+    const oldPos=pos;
+    pos=Math.min(100,pos+total);
+    const move=(fp,evt)=>{
+      flashCell(fp);
+      if(player==='A')state.posA=fp; else state.posB=fp;
+      document.getElementById(player==='A'?'pos-a':'pos-b').textContent=fp;
+      placeToken('token'+player,fp);
+      document.getElementById('iter-count').textContent=state.iter;
+      addDot(player,evt);
+      if(fp>=100){
+        state.gameOver=true;
+        addLog(`🏆 Player ${pNum} WINS! Reached 100 in ${state.iter} iterations!`,'lw');
+        document.getElementById('winner-banner').style.display='block';
+        document.getElementById('winner-text').textContent=`Player ${pNum} reached 100 in ${state.iter} iterations!`;
+        document.getElementById('btn-roll').disabled=true;return;
+      }
+      state.turn=player==='A'?'B':'A';
+      document.getElementById('turn-label').textContent='P'+(state.turn==='A'?1:2);
+      document.getElementById('btn-roll').disabled=false;
+    };
+    if(SNAKES[pos]){
+      const np=SNAKES[pos];
+      addLog(`[Iter ${state.iter}] ${PL[phase]} — P${pNum} rolled ${total}: ${oldPos}→${pos} 🐍 Snake! Falls to ${np}`,'ls');
+      flashCell(pos); setTimeout(()=>move(np,'snake'),420);
+    } else if(LADDERS[pos]){
+      const np=LADDERS[pos];
+      addLog(`[Iter ${state.iter}] ${PL[phase]} — P${pNum} rolled ${total}: ${oldPos}→${pos} 🪜 Ladder! Climbs to ${np}`,'ll');
+      flashCell(pos); setTimeout(()=>move(np,'ladder'),420);
+    } else {
+      addLog(`[Iter ${state.iter}] ${PL[phase]} — P${pNum} rolled ${total}: ${oldPos}→${pos}`,'');
+      move(pos,'normal');
+    }
+  },450);
+}
+
+function addDot(player,type){
+  const track=document.getElementById('iter-track');
+  track.querySelectorAll('.cur').forEach(d=>d.classList.remove('cur'));
+  const dot=document.createElement('div');
+  dot.className=`idot d${player.toLowerCase()}${type==='snake'?' sn':type==='ladder'?' ld':''} cur`;
+  dot.title=`Iter ${state.iter} – P${player==='A'?1:2} – ${type}`;
+  dot.textContent=state.iter;
+  track.appendChild(dot);
+  track.scrollLeft=track.scrollWidth;
+}
+
+function addLog(msg,cls){
+  const log=document.getElementById('log');
+  const e=document.createElement('div');
+  e.style.padding='1px 0'; e.className=cls||''; e.textContent=msg;
+  log.appendChild(e); log.scrollTop=log.scrollHeight;
+}
+
+function resetGame(){
+  state={posA:1,posB:1,turn:'A',iter:0,gameOver:false};
+  document.getElementById('pos-a').textContent='1';
+  document.getElementById('pos-b').textContent='1';
+  document.getElementById('iter-count').textContent='0';
+  document.getElementById('turn-label').textContent='P1';
+  document.getElementById('log').innerHTML='';
+  document.getElementById('iter-track').innerHTML='';
+  document.getElementById('die1').textContent='⚀';
+  document.getElementById('die2').textContent='⚁';
+  document.getElementById('dice-sum').textContent='Roll to begin';
+  document.getElementById('winner-banner').style.display='none';
+  document.getElementById('btn-roll').disabled=false;
+  const b=document.getElementById('pbadge');b.className='pbadge pi';b.textContent='Phase: Initialization';
+  placeToken('tokenA',1);placeToken('tokenB',1);
+  addLog('🚀 New game. Player 1 goes first. Each roll = one iteration cycle.','');
+}
+
+/* INIT */
+buildGrid();
+drawPaths();
+setTimeout(()=>{placeToken('tokenA',1);placeToken('tokenB',1);addLog('🚀 Game ready. Hover cells to inspect. Player 1 goes first.','');},120);
+window.addEventListener('resize',()=>{placeToken('tokenA',state.posA);placeToken('tokenB',state.posB);});
+</script>
+</body>
+</html>
